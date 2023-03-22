@@ -14,6 +14,7 @@ This module also provides the `fill_electronicstructure` method
 
 MOLECULE_DIRECTORY = "./molecule"
 
+import numpy
 import openfermion
 import openfermionpyscf
 
@@ -49,7 +50,7 @@ def custom(geometry, basis='sto-3g', charge=0, multiplicity=1, label=""):
             (ie. "singlet" peaks have m=1, "triplet" peaks have m=3, etc.)
         These peaks relate to symmetry-breaking of spin states under a magnetic field.
         The more atomic quantity is "total spin" `J`.
-        The two are related by the simple formula `J = 2m - 1`.
+        The two are related by the simple formula `m = 2J + 1`.
 
     label (str): unique identifier for the molecule
 
@@ -119,10 +120,47 @@ def HChain(n, d, basis='sto-3g', multiplicity=None):
     """
     if multiplicity is None:
         J = n & 1               # LOWEST SPIN STATE (0 if n is even, 1 if n is odd)
-        m = (J+1) & 1           # CORRESPONDING MULTIPLICTY
+        m = 2*J + 1             # CORRESPONDING MULTIPLICTY
 
     geometry = [('H', (0, 0, i*d)) for i in range(n)]
     label = str(round(d,8))
+    return custom(geometry, basis=basis, multiplicity=m, label=label)
+
+def HCycle(n, d, basis='sto-3g', multiplicity=None):
+    """ A uniformly-spaced chain of hydrogen atoms, wrapped around a circle
+
+    Parameters
+    ----------
+    n (int): number of hydrogen nuclei
+    d (float): distance between each nucleus
+    basis (str): specifies atomic orbital basis set
+
+        See `custom` method for additional details.
+
+    multiplicity (int): specifies the multiplicity of the molecule
+
+        Defaults to 1 (singlet) when n is even, or 3 (triplet) when n is odd.
+
+        See `custom` method for additional details.
+
+    Returns
+    -------
+    molecule (openfermion.MolecularData)
+
+    """
+    if multiplicity is None:
+        J = n & 1               # LOWEST SPIN STATE (0 if n is even, 1 if n is odd)
+        m = 2*J + 1             # CORRESPONDING MULTIPLICTY
+
+    π   = numpy.pi
+    sin = numpy.sin
+    cos = numpy.cos
+
+    θ = 2*π / n             # ANGULAR SEPARATION BETWEEN EACH NUCLEUS
+    r = d / (2 * sin(θ/2))  # RADIUS FROM CENTER FOR EACH NUCLEUS
+
+    geometry = [('H', (r*cos(i*θ), r*sin(i*θ), 0)) for i in range(n)]
+    label = f"cyclic-{str(round(d,8))}"
     return custom(geometry, basis=basis, multiplicity=m, label=label)
 
 # TODO: LiH
