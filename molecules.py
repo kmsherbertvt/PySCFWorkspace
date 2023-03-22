@@ -92,7 +92,8 @@ def H2(d, basis='sto-3g', multiplicity=1):
         ('H', (0, 0, 0)),
         ('H', (0, 0, d)),
     ]
-    return custom(geometry, basis=basis, multiplicity=multiplicity, label=str(d))
+    label = str(round(d,8))
+    return custom(geometry, basis=basis, multiplicity=multiplicity, label=label)
 
 def HChain(n, d, basis='sto-3g', multiplicity=None):
     """ A uniformly-spaced chain of hydrogen atoms.
@@ -118,10 +119,11 @@ def HChain(n, d, basis='sto-3g', multiplicity=None):
     """
     if multiplicity is None:
         J = n & 1               # LOWEST SPIN STATE (0 if n is even, 1 if n is odd)
-        multiplicity = 2*J - 1  # CORRESPONDING MULTIPLICTY
+        m = (J+1) & 1           # CORRESPONDING MULTIPLICTY
 
     geometry = [('H', (0, 0, i*d)) for i in range(n)]
-    return custom(geometry, basis=basis, multiplicity=multiplicity, label=str(d))
+    label = str(round(d,8))
+    return custom(geometry, basis=basis, multiplicity=m, label=label)
 
 # TODO: LiH
 # TODO: HeH+
