@@ -109,7 +109,7 @@ def HChain(n, d, basis='sto-3g', multiplicity=None):
 
     multiplicity (int): specifies the multiplicity of the molecule
 
-        Defaults to 1 (singlet) when n is even, or 3 (triplet) when n is odd.
+        Defaults to 1 (singlet) when n is even, or 2 (triplet) when n is odd.
 
         See `custom` method for additional details.
 
@@ -119,8 +119,8 @@ def HChain(n, d, basis='sto-3g', multiplicity=None):
 
     """
     if multiplicity is None:
-        J = n & 1               # LOWEST SPIN STATE (0 if n is even, 1 if n is odd)
-        m = 2*J + 1             # CORRESPONDING MULTIPLICTY
+        J2 = n & 1              # 2*LOWEST SPIN STATE (0 if n is even, 1 if n is odd)
+        m = J2 + 1              # CORRESPONDING MULTIPLICTY
 
     geometry = [('H', (0, 0, i*d)) for i in range(n)]
     label = str(round(d,8))
@@ -162,6 +162,70 @@ def HCycle(n, d, basis='sto-3g', multiplicity=None):
     geometry = [('H', (r*cos(i*θ), r*sin(i*θ), 0)) for i in range(n)]
     label = f"cyclic-{str(round(d,8))}"
     return custom(geometry, basis=basis, multiplicity=m, label=label)
+
+def H4Hedron(d, basis='sto-3g', multiplicity=None):
+    """ A regular tetrahedron of hydrogen atoms.
+
+    Parameters
+    ----------
+    d (float): the length of each edge in the tetrahedron (aka bond length)
+    basis (str): specifies atomic orbital basis set
+
+        See `custom` method for additional details.
+
+    multiplicity (int): specifies the multiplicity of the molecule
+
+        Defaults to 1 (singlet) when n is even, or 3 (triplet) when n is odd.
+
+        See `custom` method for additional details.
+
+    """
+    if multiplicity is None:
+        multiplicity = 1
+
+    r = d / numpy.sqrt(2)       # EDGE-LENGTH OF CUBE CIRCUMSCRIBING THE TETRAHEDRON
+
+    geometry = [
+        ('H', ( 0, 0, 0)),
+        ('H', ( 0, r, r)),
+        ('H', ( r, 0, r)),
+        ('H', ( r, r, 0)),
+    ]
+    label = f"hedral-{str(round(d,8))}"
+    return custom(geometry, basis=basis, multiplicity=multiplicity, label=label)
+
+def H6Hedron(d, basis='sto-3g', multiplicity=None):
+    """ A regular octehedron of hydrogen atoms.
+
+    Parameters
+    ----------
+    d (float): the length of each edge in the octahedron (aka bond length)
+    basis (str): specifies atomic orbital basis set
+
+        See `custom` method for additional details.
+
+    multiplicity (int): specifies the multiplicity of the molecule
+
+        See `custom` method for additional details.
+
+    """
+    if multiplicity is None:
+        multiplicity = 1
+
+    r = d / numpy.sqrt(2)       # RADIUS OF SPHERE CIRCUMSCRIBING THE OCTAHEDRON
+
+    geometry = [
+        ('H', ( 0, 0, r)),
+        ('H', ( r, 0, 0)),
+        ('H', ( 0, r, 0)),
+        ('H', (-r, 0, 0)),
+        ('H', ( 0,-r, 0)),
+        ('H', ( 0, 0,-r)),
+    ]
+    label = f"hedral-{str(round(d,8))}"
+    return custom(geometry, basis=basis, multiplicity=multiplicity, label=label)
+
+
 
 # TODO: LiH
 # TODO: HeH+

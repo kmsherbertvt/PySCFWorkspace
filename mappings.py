@@ -17,9 +17,53 @@ from openfermion import jordan_wigner_code as JW
 from openfermion import bravyi_kitaev_code as BK
 from openfermion import parity_code as P
 
+import scipy
+
+class Sector:
+    def __init__(self, n=None, Ne=None, Nα=None):
+        """ Encapsulate the parameters needed to know what to do for any mapping.
+
+        NOTE: Not every parameter is needed for every mapping.
+            You only need to specify those parameters relevant to your intended mapping.
+            (Other values may be filled in for computational simplicity,
+                but they can be ignored.)
+
+        NOTE: Probably the code will change completely
+            if we add more ambitious mappings like BK-superfast or first-quantization.
+        But in principle the same interface can be used, if the constructor is modified.
+
+        Parameters
+        ----------
+        n (int): the number of spin orbitals being represented in second-quantization
+        Ne (int): the number of electrons in the sector
+        Nα (int): the number of spin-α electrons in the sector
+
+        """
+        if n is None: raise ValueError("Please tell me something about the sector.")
+        if Ne is None:  Ne = n >> 1
+        if Nα is None:  Nα = Ne >> 1    # NOTE: By default, Nα ≤ Nβ.
+                                            # This is opposite to pyscf convention.
+        Nβ = Ne - Nα
+        assert n >= Nα + Nβ             # THERE MUST BE ENOUGH ORBITALS FOR EACH ELECTRON
+
+        self.n = n
+        self.Ne = Ne
+        self.Nα = Nα
+        self.Nβ = Nβ
+        self.m = abs(Nα-Nβ) + 1         # Multiplicity.
+
+    def __str__(self):
+        return f"{self.n}_{self.Ne}_{self.Nα}"
+
+    def nstates(self):
+        """ Calculate the total number of configurations in this sector. """
+        L = self.n >> 1
+        return int(scipy.special.comb(L,self.Nα) * scipy.special.comb(L,self.Nβ))
+
+
 """ Map string labels to a qubit-mapping function.
 
-Each value is a function accepting a single argument `openfermion.MolecularData`,
+Each value is a function accepting a `Sector` object,
     and returning an `openfermion.BinaryData`.
 
 Look at the code to see all the valid string labels.
@@ -34,57 +78,54 @@ Modifications:
 """
 CONSTRUCT_BINARY_CODE = {
     # JW: Jordan-Wigner
-    "JW": lambda molecule: JW(molecule.n_qubits),
-    "JW-n": lambda molecule: _taper_n(molecule) * JW(molecule.n_qubits-1),
-    "JW-m": lambda molecule: _taper_m(molecule) * JW(molecule.n_qubits-2),
+    "JW": lambda sector: JW(sector.n),
+    "JW-n": lambda sector: _taper_n(sector) * JW(sector.n-1),
+    "JW-m": lambda sector: _taper_m(sector) * JW(sector.n-2),
 
     # BK: Bravyi-Kitaev
-    "BK": lambda molecule: BK(molecule.n_qubits),
-    "BK-n": lambda molecule: _taper_n(molecule) * BK(molecule.n_qubits-1),
-    "BK-m": lambda molecule: _taper_m(molecule) * BK(molecule.n_qubits-2),
+    "BK": lambda sector: BK(sector.n),
+    "BK-n": lambda sector: _taper_n(sector) * BK(sector.n-1),
+    "BK-m": lambda sector: _taper_m(sector) * BK(sector.n-2),
 
     # P: Parity
-    "P":  lambda molecule: P(molecule.n_qubits),
-    "P-n": lambda molecule: _taper_n(molecule) * P(molecule.n_qubits-1),
-    "P-m": lambda molecule: _taper_m(molecule) * P(molecule.n_qubits-2),
+    "P":  lambda sector: P(sector.n),
+    "P-n": lambda sector: _taper_n(sector) * P(sector.n-1),
+    "P-m": lambda sector: _taper_m(sector) * P(sector.n-2),
 }
 
-def _taper_n(molecule):
+def _taper_n(sector):
     """ Construct a binary code tapering one qubit by particle number conservation.
 
     Parameters
     ----------
-    molecule (openfermion.MolecularData)
-
-        The molecule is assumed to include basic derived data. In other words,
-        call `molecules.fill_electronicstructure(molecule)` before this method.
+    obj: has the following fields:
+        L (int): number of spatial orbitals
+        N (int): number of electrons
 
     Returns
     -------
     code (openfermion.BinaryCode)
 
     """
-    Ne = molecule.n_electrons
-    return openfermion.checksum_code(molecule.n_qubits, Ne & 1)
+    return openfermion.checksum_code(sector.n, sector.Ne & 1)
 
-def _taper_m(molecule):
+def _taper_m(sector):
     """ Construct a binary code tapering two qubits by conservation of each spin.
 
     Parameters
     ----------
-    molecule (openfermion.MolecularData)
-
-        The molecule is assumed to include basic derived data. In other words,
-        call `molecules.fill_electronicstructure(molecule)` before this method.
+    obj: has the following fields:
+        L (int): number of spatial orbitals
+        M (int): number of α electrons
+        N (int): number of electrons
 
     Returns
     -------
     code (openfermion.BinaryCode)
 
     """
-    Nα = molecule.get_n_alpha_electrons()
-    Nβ = molecule.get_n_beta_electrons()
-    α_code = openfermion.checksum_code(molecule.n_qubits//2, Nα & 1)
-    β_code = openfermion.checksum_code(molecule.n_qubits//2, Nβ & 1)
-    stagger = openfermion.interleaved_code(molecule.n_qubits)
+    L = sector.n // 2       # NUMBER OF SPATIAL ORBITALS
+    α_code = openfermion.checksum_code(L, sector.Nα & 1)
+    β_code = openfermion.checksum_code(L, sector.Nβ & 1)
+    stagger = openfermion.interleaved_code(2*L)
     return stagger * (α_code + β_code)
