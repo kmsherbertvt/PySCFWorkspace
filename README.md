@@ -10,26 +10,18 @@ But I recommend this one, because:
 - It is a standalone repository, designed to produce portable data files.
 - I'm using openfermion's "Binary Code" interface for generating qubit mappings,
    which is a bit more flexible than the others, I think.
-- I think it's a simpler yet more extensible interface, at least for my needs.
 - Well...I comment my code. ^_^
 
 ## What can I do with this code?
 
-So far, the following features are available:
-- Design molecules with custom geometries with a given basis, charge, and spin.
-- Convenient constructions for typical H₂ and arbitrary-length H-chains.
-- Generate the `openfermion.InteractionOperator` and `openfermion.FermionOperator` corresponding to a given molecule.
-- Implement qubit mappings for the "standard" Jordan-Wigner, Bravyi-Kitaev, and Parity mappings,
-   *as well as* Z₂ symmetry reductions (particle conservation and spin conservation) for each mapping.
-- Generate the `openfermion.QubitOperator` and dense matrix `numpy.ndarray` corresponding to a given molecule and qubit mapping.
-- Save the dense matrix operator to a portable `.npy` file, easily loaded in other workflows.
-
-The following features are currently in development:
-- Standardized serialization of the `openfermion` data structures, so that they are as portable as matrices.
-- Interface for freezing orbitals within a basis (eg. remove core orbitals from quantum computation).
-  (This is essential, but I don't really know how to do it yet.)
-- Convenient constructions for additional model molecules (LiH, H2O, etc.).
-  (Should be trivial, once I understand orbital freezing.)
+The following features are available:
+- Convenient constructions for typical molecular geometries encountered in quantum computing literature,
+  including H₂, arbitrary-length H-chains, LiH, and others.
+- Thorough tutorials demonstrating how to solve Hartree-Fock for these molecules in pyscf.
+- Generate the `openfermion.FermionOperator` corresponding to a given molecule with a given active space.
+- Implement Z₂ symmetry reductions (particle conservation and spin conservation) for any standard qubit mapping.
+- Generate the `openfermion.QubitOperator` and Hartree-Fock reference state corresponding to a given molecule and qubit mapping.
+- Save the qubit operator and reference state to a portable and compact `.npz` file, easily loaded in other workflows.
 
 ## Installation and Usage
 
@@ -46,24 +38,28 @@ The following commands will work, but may be overkill if you aren't using a Mac 
 Please see the file `install_dependencies_M1.sh` for more thorough installation instructions.
 
 Recommended usage is through the `ipython` shell.
-The following example generates a dense 16x16 (4 qubit) matrix for H2 with a 1.5 Ang bond separation,
-   using the Jordan-Wigner mapping.
+Please see the example scripts (starting with `__x__`) for more thorough instruction,
+   but here is a minimalist example generating the portable .npz file for molecular hydrogen,
+   with an experimental equilibrium geometry, the Jordan-Wigner mapping, .
 ```
 > cd PySCFWorkspace
 > conda activate pyscf
 > ipython
 :
-: import molecules
-: d = 1.5 # Ang
-: geometry = [('H', (0,0,0)), ('H', (0,0,d))]
-: molecule = molecules.custom(geometry, label="1.5")
+: import pyscf, openfermion
+: import geometries, toolkit
 :
-: import operators
-: mapping = "JW"
-: matrix = operators.matrixoperator(molecule, mapping)
+: molecule = pyscf.gto.M(atom=geometries.H2(), charge=0, spin=0, basis="sto-3g")
+: scf = pyscf.scf.RHF(molecule)
+: scf.run()
+: fermiop = toolkit.fermiop_from_molecule(molecule, scf.mo_coeff)
+:
+: _, n, _, ηα, ηβ = toolkit.quantum_numbers(molecule)
+: reference = toolkit.referencevector(n, ηα, ηβ)
+: code = toolkit.taperedcode(n, ηα, ηβ)
+:
+: qubitop = toolkit.encode_operator(fermiop, code)
+: ket = toolkit.encode_vector(reference, code)
+: toolkit.save_system("systems/README.npz", qubitop, ket)
 ```
-Please study the docstrings in `mappings.py`, `molecules.py`, and `operators.py` for full documentation.
-
-In particular, find the variable `CONSTRUCT_BINARY_CODE` in `mappings.py` to see available mappings,
-   and do not hesitate to add your own.
-
+Please study the docstrings in `toolkit.py` and `geometries.py` for full documentation.
